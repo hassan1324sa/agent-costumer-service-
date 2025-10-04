@@ -1,0 +1,5 @@
+1 - design the api routers and endpoints 
+2 - data processing 
+3 - data storing 
+4 - add rag and design vdb 
+5 - add agent 
