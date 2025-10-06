@@ -1,0 +1,29 @@
+from telegram import Update
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
+
+BOT_TOKEN = "8333100225:AAEdmXl1e0rO0HUL8rwVUKALEtEbi1mvikI"
+
+
+async def receive_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    text = update.message.text
+    chat = update.effective_chat
+
+    print(f"[{chat.id}] {user.first_name}: {text}")
+
+    await update.message.reply_text(f"You wrote: {text}")
+
+def main() -> None:
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_msg))
+
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
