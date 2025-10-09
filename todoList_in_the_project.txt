@@ -1,6 +1,0 @@
-admin
-1 - design the api routers and endpoints -checked 
-2 - data processing -checked
-3 - data storing checked
-4 - add rag and design vdb  
-5 - add agents 
