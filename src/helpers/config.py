@@ -6,8 +6,10 @@ class Settings(BaseSettings):
     MONGODB_DATABASE: str
     COHERE_API_KEY:str
     AGENT_SECRET_KEY:str
-    CHROMA_DB_PATH:str
+    VDB_PATH:str
     FASTAPI_URL:str
+    BOT_TOKEN:str
+    VECTOR_DB_DISTANCE_METHOD:str
 
     model_config = SettingsConfigDict(
         env_file=".env",

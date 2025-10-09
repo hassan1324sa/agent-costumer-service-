@@ -1,7 +1,8 @@
+from helpers.config import getSettings
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8333100225:AAEdmXl1e0rO0HUL8rwVUKALEtEbi1mvikI"
+BOT_TOKEN = getSettings().BOT_TOKEN
 
 
 async def receive_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -11,7 +12,7 @@ async def receive_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     print(f"[{chat.id}] {user.first_name}: {text}")
 
-    await update.message.reply_text(f"You wrote: {text}")
+    await update.message.reply_text(f"احا: {text}")
 
 def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()

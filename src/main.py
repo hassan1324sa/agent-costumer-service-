@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 from routers import base, data, booking
 from helpers.config import getSettings
+from stores.vectordb.providers.QdrantDB import QdrantDB
+from stores.vectordb.vectorDBEnum import DistanceMethodEnums
+import cohere
 
 settings = getSettings()
 
@@ -12,10 +15,21 @@ async def startup():
     app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
     app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
 
+    app.qdrant = QdrantDB(
+        dbPath=settings.VDB_PATH,
+        distanceMethod=DistanceMethodEnums.COSINE.value
+    )
+    app.qdrant.connect()
+    app.qdrant.createCollection(collectionName="rag_data", embeddingSize=1024)
+
+    app.cohere_client = cohere.Client(settings.COHERE_API_KEY)
+
+
+
 @app.on_event("shutdown")
 async def shutdown():
     app.mongo_conn.close()
-
+    app.qdrant.disconnect()
 
 
 app.include_router(base.baseRouter)
