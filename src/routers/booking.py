@@ -15,7 +15,6 @@ async def addBooking(
     date: str,
     time: str,
     appSettings: Settings = Depends(getSettings),
-    # _: None = Depends(verify_agent),  
 ):
     try:
         controller = BookingController()
@@ -63,7 +62,6 @@ async def addBooking(
 async def getAllBookings(
     request: Request,
     appSettings: Settings = Depends(getSettings),
-    # _: None = Depends(verify_agent), 
 ):
     dbClient = request.app.db_client
     bookingModel = await BookingModel.createInstance(dbClient=dbClient)
@@ -86,5 +84,56 @@ async def getAllBookings(
         print("Error:", e)
         return JSONResponse(
             content={"signal": ResponseEnum.dataFetchError.value},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+@bookingRouter.delete("/delete/{booking_id}")
+async def deleteBookingById(
+    booking_id: str,
+    request: Request,
+    appSettings: Settings = Depends(getSettings),
+):
+    try:
+        dbClient = request.app.db_client
+        bookingModel = await BookingModel.createInstance(dbClient=dbClient)
+        result = await bookingModel.deleteById(booking_id)
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No booking found with ID: {booking_id}"
+            )
+
+        return JSONResponse(
+            content={"signal": ResponseEnum.dataDeletedSuccessfully.value},
+            status_code=status.HTTP_200_OK
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print("Error:", e)
+        return JSONResponse(
+            content={"signal": ResponseEnum.dataDeletedError.value, "detail": str(e)},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+@bookingRouter.delete("/delete/all/")
+async def deleteAllBookings(
+    request: Request,
+    appSettings: Settings = Depends(getSettings),
+):
+    try:
+        dbClient = request.app.db_client
+        bookingModel = await BookingModel.createInstance(dbClient=dbClient)
+        result = await bookingModel.deleteAll()
+
+        return JSONResponse(
+            content={"signal": ResponseEnum.dataDeletedSuccessfully.value, "deleted_count": result},
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as e:
+        print("Error:", e)
+        return JSONResponse(
+            content={"signal": ResponseEnum.dataDeletedError.value, "detail": str(e)},
             status_code=status.HTTP_400_BAD_REQUEST
         )

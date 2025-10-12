@@ -68,25 +68,27 @@ class QdrantDB(VectorDBInterFace):
         return False
 
 
-    def insertOne(self, collectionName, text, vector, metadata=None, recordId=None):
-        if not self.isCollectionExisted(collectionName):
-            self.logger.error(f"Cannot insert record: collection '{collectionName}' does not exist.")
-            return False
-
+    def insertOne(self, collectionName: str, text: str, vector, metadata=None, recordId=None):
         try:
-            record = models.Record(
-                id=recordId,
-                vector=vector,
-                payload={"text": text, "metadata": metadata}
+            self.client.upsert(
+                collection_name=collectionName,
+                points=[
+                    models.PointStruct(
+                        id=recordId,
+                        vector=vector,
+                        payload={"text": text, **(metadata or {})}
+                    )
+                ]
             )
-            self.client.upload_records(collection_name=collectionName, records=[record])
-            self.logger.info(f"Inserted record {recordId} into '{collectionName}'.")
-            return True
 
+            self.client.update_collection(
+                collection_name=collectionName,
+                optimizer_config=models.OptimizersConfigDiff(indexing_threshold=1)
+            )
+
+            print(f"✅ Inserted record {recordId} into {collectionName}")
         except Exception as e:
-            self.logger.error(f"Error while inserting record {recordId}: {e}")
-            return False
-
+            print(f"❌ Error inserting: {e}")
     def insertMany(self, collectionName, texts, vectors, metadata=None, recordIds=None, batchSize=50):
         if not self.isCollectionExisted(collectionName):
             self.logger.error(f"Cannot insert records: collection '{collectionName}' does not exist.")
@@ -148,3 +150,17 @@ class QdrantDB(VectorDBInterFace):
         except Exception as e:
             self.logger.error(f"Error while searching in '{collectionName}': {e}")
             return None
+    
+    def deletePoint(self, collectionName, recordId):
+        if not self.isCollectionExisted(collectionName):
+            self.logger.error(f"Collection '{collectionName}' does not exist.")
+            return False
+
+        try:
+            self.client.delete(collection_name=collectionName, points_selector=models.PointIdsList(points=[recordId]))
+            self.logger.info(f"Deleted record {recordId} from '{collectionName}'.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error while deleting record {recordId}: {e}")
+            return False
+

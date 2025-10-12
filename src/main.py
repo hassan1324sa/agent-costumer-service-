@@ -5,6 +5,9 @@ from helpers.config import getSettings
 from stores.vectordb.providers.QdrantDB import QdrantDB
 from stores.vectordb.vectorDBEnum import DistanceMethodEnums
 import cohere
+from bot.telegramBot import runBot
+import asyncio
+
 
 settings = getSettings()
 
@@ -20,11 +23,11 @@ async def startup():
         distanceMethod=DistanceMethodEnums.COSINE.value
     )
     app.qdrant.connect()
-    app.qdrant.createCollection(collectionName="rag_data", embeddingSize=1024)
+    app.qdrant.createCollection(collectionName="rag_data", embeddingSize=768)
 
     app.cohere_client = cohere.Client(settings.COHERE_API_KEY)
 
-
+    asyncio.create_task(runBot())
 
 @app.on_event("shutdown")
 async def shutdown():

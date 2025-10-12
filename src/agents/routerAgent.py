@@ -28,6 +28,6 @@ router_task = Task(
         لو مش واضح نوع الرسالة، خلي الاثنين false.
         الناتج لازم يكون في صيغة JSON فقط بدون أي شرح إضافي.
     """,
-    expected_output='{"faq": true|false, "booking": true|false}',
+    expected_output='{"faq": true|false, "booking": true|false} json only',
     agent=router_agent
 )

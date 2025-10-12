@@ -1,30 +1,42 @@
-from helpers.config import getSettings
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-
 from agents.routerAgent import router_agent, router_task
+from agents.ragAgent import rag_agent, rag_task
+from helpers.config import getSettings
+import asyncio
+import json 
+import re
+
+# from agents.ragAgent import rag_task
 
 BOT_TOKEN = getSettings().BOT_TOKEN
-
 async def receive_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     text = update.message.text
     chat = update.effective_chat
-
-    print(f"[{chat.id}] {user.first_name}: {text}")
-
+    
     try:
         router_output = router_task.execute_sync(context=text, agent=router_agent)
-        print(f"نتيجة التوجيه: {router_output}")
-        await update.message.reply_text(str(router_output))
+        routerDict= router_output.dict()["raw"]
+        cleanedRouterDict = re.sub(r"```(?:json)?", "", routerDict).strip().strip("`").strip()
+        routerDict = json.loads(cleanedRouterDict)
+        if routerDict["faq"]:
+            rag_output = rag_task.execute_sync(context=text, agent=rag_agent)
+            print(text)
+            print(rag_output)
+            await update.message.reply_text(str(rag_output))
+        
     except Exception as e:
         print(f"خطأ في تنفيذ الوكلاء: {e}")
         await update.message.reply_text(f"حدث خطأ أثناء معالجة الرسالة: {str(e)}")
 
-def main() -> None:
+async def runBot():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_msg))
-    app.run_polling(drop_pending_updates=True)
 
-if __name__ == "__main__":
-    main()
+    loop = asyncio.get_event_loop()
+    await app.initialize()
+    await app.start()
+    print("🤖 Telegram bot started successfully!")
+
+    asyncio.create_task(app.updater.start_polling())

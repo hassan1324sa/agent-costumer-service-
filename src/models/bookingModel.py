@@ -1,5 +1,6 @@
 from models.dbSchemes import Booking
 from datetime import datetime, timedelta
+from bson import ObjectId  
 
 class BookingModel:
     def __init__(self, db):
@@ -27,21 +28,33 @@ class BookingModel:
             print("Error in getBookings:", e)
             return []
     
-    async def isExist(self,filters):
-
+    async def isExist(self, filters):
         try:
-            if not isinstance(filters,dict):
+            if not isinstance(filters, dict):
                 raise ValueError("Filters must be a dictionary.")
-            date= filters["date"].strftime("%Y-%m-%d")
-            time =filters["time"].strftime("%I:%M %p")
+            date = filters["date"].strftime("%Y-%m-%d")
+            time = filters["time"].strftime("%I:%M %p")
             result = await self.collection.find_one({
-                "date":date,
-                "time":time,               
+                "date": date,
+                "time": time,               
             })
-            if result is not None:
-                return True
-
             return result is not None 
         except Exception as e:
             print(f"Error in isExist: {e}")
             raise Exception(f"Failed to check booking existence: {str(e)}")
+
+    async def deleteById(self, booking_id: str):
+        try:
+            result = await self.collection.delete_one({"_id": ObjectId(booking_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error in deleteById: {e}")
+            return False
+
+    async def deleteAll(self):
+        try:
+            result = await self.collection.delete_many({})
+            return result.deleted_count
+        except Exception as e:
+            print(f"Error in deleteAll: {e}")
+            return 0
