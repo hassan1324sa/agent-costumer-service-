@@ -1,88 +1,82 @@
 from crewai import Agent, Task
 from crewai.tools import tool
 import agentops
-from helpers.config import getSettings
 from stores.llms import MakeLLm
-from stores.vectordb.providers.QdrantDB import QdrantDB
-from stores.vectordb.vectorDBEnum import DistanceMethodEnums
-import cohere
 
-settings = getSettings()
+class RAGAgentManager:
+    def __init__(self, app):
+        self.settings = app.settings
+        self.qdrant = app.qdrant
+        self.cohere_client = app.cohere_client
 
-LLmOBJ = MakeLLm(settings.LLM_ROUTER, settings.LLM_TEMP)
-llm = LLmOBJ.getLLm()
+        LLmOBJ = MakeLLm(self.settings.LLM_ROUTER, self.settings.LLM_TEMP)
+        self.llm = LLmOBJ.getLLm()
 
-agentops.init(
-    api_key=settings.AGENTOPS_API_KEY,
-    skip_auto_end_session=True
-)
+        agentops.init(api_key=self.settings.AGENTOPS_API_KEY, skip_auto_end_session=True)
 
-qdrant = QdrantDB(
-    dbPath=settings.VDB_PATH,
-    distanceMethod=DistanceMethodEnums.COSINE.value
-)
+        self.kb_tool = self.create_kb_tool()
+        self.rag_agent = self.create_rag_agent()
+        self.rag_task = self.create_rag_task()
 
-cohereClient = cohere.Client(settings.COHERE_API_KEY)
+    def create_kb_tool(self):
+        @tool
+        def kb_tool(query: str) -> str:
+            """
+            تبحث في قاعدة المعرفة باستخدام الـ embeddings من Cohere.
+            ترجع أفضل 5 نتائج مرتبطة بالاستعلام.
+            لو مفيش نتائج، ترجع رسالة: 'للأسف، معرفش أي معلومة عن سؤالك.'
+            """
+            try:
+                if not self.qdrant.isCollectionExisted("rag_data"):
 
+                    return "للأسف، معرفش أي معلومة عن سؤالك."
 
-@tool
-def knowledge_base_search(query: str) -> str:
-    """
-    تبحث في قاعدة المعرفة باستخدام الـ embedding من Cohere،
-    وترجع النتائج المرتبطة بالاستعلام.
-    """
-    try:
-        qdrant.connect()
+                response = self.cohere_client.embed(
+                    model="embed-multilingual-v3.0",
+                    texts=[query],
+                    input_type="search_query"
+                )
+                query_vector = response.embeddings[0]
 
-        response = cohereClient.embed(
-            model="embed-multilingual-v3.0",
-            texts=[query],
-            input_type="search_query"
+                results = self.qdrant.searchByVector(
+                    collectionName="rag_data",
+                    vector=query_vector,
+                    limit=5
+                )
+
+                if not results:
+                    return "للأسف، معرفش أي معلومة عن سؤالك."
+
+                retrieved_texts = [f"{i+1}. {doc.text}" for i, doc in enumerate(results)]
+                return "\n".join(retrieved_texts)
+
+            except Exception as e:
+                print(f"❌ Error in knowledge_base_search: {e}")
+                return "للأسف، معرفش أي معلومة عن سؤالك."
+
+        return kb_tool
+
+    def create_rag_agent(self):
+        return Agent(
+            role="وكيل استرجاع المعرفة (RAG)",
+            goal="تقديم إجابات دقيقة فقط بناءً على قاعدة المعرفة.",
+            backstory=(
+                "خبير في استرجاع المعلومات من قاعدة البيانات الشعاعية باستخدام embeddings من Cohere. "
+                "لو مفيش بيانات في قاعدة المعرفة، لا تجيب من عندك وقول فقط: 'للأسف، معرفش أي معلومة عن سؤالك.'"
+            ),
+            llm=self.llm,
+            tools=[self.kb_tool]
         )
-        query_vector = response.embeddings[0]
 
-        results = qdrant.searchByVector(
-            collectionName="rag_data",
-            vector=query_vector,
-            limit=5
+    def create_rag_task(self):
+        return Task(
+            description="""
+                خليك لطيف.
+                استخدم الأداة kb_tool لاسترجاع المعلومات من قاعدة المعرفة.
+                لو رجعت None أو كانت النتيجة فارغة، قول فقط: 'للأسف، معرفش أي معلومة عن سؤالك.'
+                لو لقيت بيانات، استخدمها لإنشاء إجابة دقيقة وواضحة.
+                ممنوع تجاوب من نفسك بدون بيانات من قاعدة المعرفة، وممنوع ذكر اسم الأداة.
+            """,
+            expected_output="إجابة نصية دقيقة أو 'للأسف، معرفش أي معلومة عن سؤالك.'",
+            agent=self.rag_agent
         )
-        print(results)
-        if not results or len(results) == 0:
-            return "__NO_RESULTS__"
-
-        retrieved_texts = []
-        for i, doc in enumerate(results, start=1):
-            retrieved_texts.append(f"{i}. (Score: {round(doc.score, 3)}) {doc.text}")
-
-        output = "نتائج البحث:\n" + "\n".join(retrieved_texts)
-        return output
-
-    except Exception as e:
-        print(f"❌ Error in knowledge_base_search: {e}")
-        return "__ERROR__"
-
-    finally:
-        qdrant.disconnect()
-
-
-rag_agent = Agent(
-    role="وكيل استرجاع المعرفة (RAG)",
-    goal="تقديم إجابات دقيقة فقط بناءً على قاعدة المعرفة.",
-    backstory=(
-        "خبير في استرجاع المعلومات من قاعدة البيانات الشعاعية باستخدام embeddings من Cohere. "
-        "لو مفيش بيانات في قاعدة المعرفة، لا تجيب من عندك وقول فقط إنك لا تعرف."
-    ),
-    llm=llm,
-    tools=[knowledge_base_search]
-)
-
-rag_task = Task(
-    description="""
-        استخدم الأداة knowledge_base_search لاسترجاع المعلومات من قاعدة المعرفة.
-        لو رجعت "__NO_RESULTS__"، قول فقط: "معرفش إجابة السؤال ده لأن مفيش بيانات كفاية في قاعدة المعرفة."
-        أما لو لقيت نتائج، استخدمها لإنشاء إجابة دقيقة وواضحة.
-        ممنوع تجاوب من نفسك بدون بيانات من قاعدة المعرفة.
-    """,
-    expected_output="إجابة نصية دقيقة أو 'معرفش إجابة السؤال ده'.",
-    agent=rag_agent
-)

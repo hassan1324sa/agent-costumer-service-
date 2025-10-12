@@ -10,11 +10,12 @@ import asyncio
 
 
 settings = getSettings()
-
 app = FastAPI(title=settings.APP_NAME)
 
 @app.on_event("startup")
 async def startup():
+    app.settings = settings
+
     app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
     app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
 
@@ -27,7 +28,7 @@ async def startup():
 
     app.cohere_client = cohere.Client(settings.COHERE_API_KEY)
 
-    asyncio.create_task(runBot())
+    asyncio.create_task(runBot(app))
 
 @app.on_event("shutdown")
 async def shutdown():
