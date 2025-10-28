@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r src/requirements.txt"
+
+[deploy]
+startCommand = "python src/bot/telegramBot.py"
+
+[env]
+PYTHONUNBUFFERED = "1"
+PYTHON_VERSION = "3.10"
