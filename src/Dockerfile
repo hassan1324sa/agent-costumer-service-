@@ -2,8 +2,9 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY . .
+COPY ./src /app
+COPY ./src/requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-CMD ["python", "src/bot/telegramBot.py"]
+CMD ["python", "bot/telegramBot.py"]
