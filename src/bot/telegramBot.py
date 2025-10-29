@@ -4,13 +4,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from telegram.request import HTTPXRequest
-#this for railway
-from src.agents.routerAgent import router_agent, router_task
-from src.agents.bookingAgent import BookingAgentManager
-from src.agents.ragAgent import RAGAgentManager
-# from agents.routerAgent import router_agent, router_task
-# from agents.bookingAgent import BookingAgentManager
-# from agents.ragAgent import RAGAgentManager
+from agents.routerAgent import router_agent, router_task
+from agents.bookingAgent import BookingAgentManager
+from agents.ragAgent import RAGAgentManager
 import asyncio
 import json
 import re
