@@ -2,7 +2,7 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "python src/bot/telegramBot.py"
+startCommand = "python src/start_bot.py"
 
 [env]
 PYTHONUNBUFFERED = "1"
